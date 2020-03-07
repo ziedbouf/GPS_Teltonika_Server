@@ -1,0 +1,28 @@
+This is a rework of the original forked project.
+
+First, I've fixed the decoding error that prevents me to obtain a valid string with coordinates and other stuff from my Teltonika tracker.
+Also I've changed the database from mssql and used PostgreSQL so you can get advantages of the PostGis extension to perform geographic queries
+The last improvement is the refactoring in order to work on Python3 (at least 3.6.8), since 2.7 is way too outdated.
+
+So, in order to get it work, you need:
+
+-Python3 (>=3.6.8)
+-PostgreSQL (>=9.2.24)
+-Redis (>=3.2.12)
+
+and of course a Teltonika GPS (tested on MTB100 with codec8, no codec8-extended).
+
+Included in the project there is a sql file, use it to build your database schema.
+Next step is to copy the file "gps.conf.dist" in "gps.conf" and edit it using your data.
+
+I've choosen to split the project in two different folder because the "data_collector" will receive the gps data from the Teltonika, decode them and save on redis
+You could of course decide to put the "collector" wherever you want, and choose to scale it up as you want (of course you need to point the redis as well)
+The second folder contains the "db_worker", you could configure may workers in order to read from redis and write to PostgreSQL, this could also a cluster.
+
+I will strongly suggest you to use a virtual environment; to start the collector, move on the "data_collector" directory and launch
+
+    "python3 snifr.py"
+
+To launch the db_worker, move into the corresponding directory and start it with
+
+    "python3 db_daemon.py".

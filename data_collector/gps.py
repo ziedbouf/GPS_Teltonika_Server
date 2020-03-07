@@ -30,28 +30,26 @@ class GPSTerminal:
         self.sensorsDataBlocks = []
         self.error = []
         self.blockCount = 0
-        # Raw data bytes from tracker
-        self.raw = ''
-
         self.success = True
         # Break in data, that was read from socket
         self.dataBreak = 0
         # If we have more than 5 try to read, connection not proceeded
         self.possibleBreakCount = 5
 
-
     def startReadData(self):
         try:
             self.proceedConnection()
-        except socket.timeout, e:
+        except socket.timeout as err:
+            self.error.append( "Socket timeout error: %s" % err)
             self.success = False
 
     def proceedConnection(self):
-
         if self.isCorrectConnection():
             self.readIMEI()
             if self.imei:
                 self.proceedData()
+            else:
+                self.error.append( "Can't read IMEI" )
         else:
             self.error.append( "Incorrect connection data stream" )
             self.success = False
@@ -63,19 +61,24 @@ class GPSTerminal:
         self.time = datetime.now()
         self.data = self.readData()
         if self.data:
-            Zeros, AVLLength, CodecID, BlockCount, Hexline = unpack("HLBBs*", self.data)
-
-            self.Hexline = binascii.hexlify(Hexline)
-            self.blockCount = BlockCount
+            Hexline = binascii.hexlify(self.data)
+            self.Hexline = Hexline.decode()
             self.AVL = 0 # AVL ? Looks like data reading cursor
+            Zeros = self.extract(8)
+            AVLLength = self.extract(8)
+            CodecID = self.extract(2)
+            BlockCount = self.extract_int(2)
+            self.blockCount = BlockCount
             proceed = 0
             AVLBlockPos = 0
 
-            while proceed < BlockCount:
+            while proceed < self.blockCount:
                 try:
                     data = self.proceedBlockData()
                     self.sensorsDataBlocks.append( data )
-                except ValueError, e:
+                except ValueError as e:
+                    self.error.append( "Value error: %s" % e)
+                    print( "Value error: %s" % e)
                     self.dataBreak += 1
                     # In case data consistency problem, we are re-trying to read data from socket
                     self.reReadData(Hexline)
@@ -97,30 +100,28 @@ class GPSTerminal:
 
     def readData(self, length = 8192):
         data = self.socket.recv(length)
-        self.raw += data
         return data
 
     def reReadData(self, Hexline):
         HexlineNew = unpack("s*", self.readData())
-        Hexline += HexlineNew[0]
-        self.Hexline = binascii.hexlify(Hexline)
+        Hexline += binascii.hexlify(HexlineNew[0])
+        self.Hexline = Hexline
 
     def proceedBlockData(self):
         """
         Proceed block data from received data
         """
         DateV = '0x'+ self.extract(16)
-        DateS = round(long( DateV, 16) /1000, 0)
+        DateS = int(round(int( DateV, 16) /1000, 0))
         Prio = self.extract_int(2)
-        GpsLon = self.extract_int(8)
+        GpsLng = self.extract_int(8)
         GpsLat = self.extract_int(8)
-        Lon = str(float(GpsLon)/10000000)
+        Lng = str(float(GpsLng)/10000000)
         Lat = str(float(GpsLat)/10000000)
-        GpsH = self.extract_int(4)
-        GpsCourse = self.extract_int(4)
-        GpsSat = self.extract_int(2)
-        GpsSpeed = self.extract_int(4)
-
+        Alt = self.extract_int(4)
+        Course = self.extract_int(4)
+        Sats = self.extract_int(2)
+        Speed = self.extract_int(4)
         IOEventCode = self.extract_int(2)
         NumOfIO = self.extract_int(2)
 
@@ -133,8 +134,7 @@ class GPSTerminal:
                 pais_count+=1
                 sensorDataResult[iocode] = data[iocode]
                 pc += 1
-
-        return {'imei' : self.imei, 'date': DateS, 'Lon': Lon, 'Lat': Lat, 'GpsSpeed': GpsSpeed, 'GpsCourse': GpsCourse, 'sensorData': sensorDataResult}
+        return {'imei' : self.imei, 'date': DateS, 'lng': Lng, 'lat': Lat, 'alt': Alt, 'course': Course, 'sats': Sats, 'speed': Speed, 'sensorData': sensorDataResult}
 
     def readSensorDataBytes(self, count):
         result = {}
@@ -153,12 +153,13 @@ class GPSTerminal:
         return result
 
     def extract_int(self, length):
-        return int(self.extract(length), 16)
+        hex_number = self.extract(length)
+        return int(hex_number, 16)
 
     def readIMEI(self):
         IMEI = self.readData(34)
-        self.imei = IMEI
-        self.socket.send(chr(01))
+        self.imei = IMEI.decode()
+        self.socket.send(chr(1).encode())
 
     def isCorrectConnection(self):
         """
@@ -181,14 +182,17 @@ class GPSTerminal:
         self.closeConnection()
 
     def closeConnection(self):
-        self.socket.close()
+        #self.socket.close()
+        p = 1
 
     def getSensorData(self):
         return self.sensorsDataBlocks
+
     def getIp(self):
         return self.ip
+
     def getImei(self):
         return self.imei
+
     def isSuccess(self):
         return self.success
-
