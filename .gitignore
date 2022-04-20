@@ -21,3 +21,8 @@ pip-log.txt
 
 # config
 gps.conf
+
+
+# virtualenv
+**/*venv/**
+

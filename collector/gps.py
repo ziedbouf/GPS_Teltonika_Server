@@ -2,19 +2,21 @@ import struct
 import binascii
 import redis
 from datetime import datetime
+from loguru import logger
 from crc import crc16
 import socket
+
 
 def unpack(fmt, data):
     try:
         return struct.unpack(fmt, data)
     except struct.error:
-        flen = struct.calcsize(fmt.replace('*', ''))
+        flen = struct.calcsize(fmt.replace("*", ""))
         alen = len(data)
-        idx = fmt.find('*')
-        before_char = fmt[idx-1]
-        n = (alen-flen)/struct.calcsize(before_char)+1
-        fmt = ''.join((fmt[:idx-1], str(n), before_char, fmt[idx+1:]))
+        idx = fmt.find("*")
+        before_char = fmt[idx - 1]
+        n = (alen - flen) / struct.calcsize(before_char) + 1
+        fmt = "".join((fmt[: idx - 1], str(n), before_char, fmt[idx + 1 :]))
         return struct.unpack(fmt, data)
 
 
@@ -40,7 +42,7 @@ class GPSTerminal:
         try:
             self.proceedConnection()
         except socket.timeout as err:
-            self.error.append( "Socket timeout error: %s" % err)
+            self.error.append("Socket timeout error: %s" % err)
             self.success = False
 
     def proceedConnection(self):
@@ -49,9 +51,9 @@ class GPSTerminal:
             if self.imei:
                 self.proceedData()
             else:
-                self.error.append( "Can't read IMEI" )
+                self.error.append("Can't read IMEI")
         else:
-            self.error.append( "Incorrect connection data stream" )
+            self.error.append("Incorrect connection data stream")
             self.success = False
 
     def proceedData(self):
@@ -63,7 +65,7 @@ class GPSTerminal:
         if self.data:
             Hexline = binascii.hexlify(self.data)
             self.Hexline = Hexline.decode()
-            self.AVL = 0 # AVL ? Looks like data reading cursor
+            self.AVL = 0  # AVL ? Looks like data reading cursor
             Zeros = self.extract(8)
             AVLLength = self.extract(8)
             CodecID = self.extract(2)
@@ -75,17 +77,17 @@ class GPSTerminal:
             while proceed < self.blockCount:
                 try:
                     data = self.proceedBlockData()
-                    self.sensorsDataBlocks.append( data )
+                    self.sensorsDataBlocks.append(data)
                 except ValueError as e:
-                    self.error.append( "Value error: %s" % e)
-                    print( "Value error: %s" % e)
+                    self.error.append("Value error: %s" % e)
+                    logger.error("Value error: %s" % e)
                     self.dataBreak += 1
                     # In case data consistency problem, we are re-trying to read data from socket
                     self.reReadData(Hexline)
                     # If we have more than possibleBreakCount problems, stop reading
-                    if self.dataBreak > self.possibleBreakCount :
+                    if self.dataBreak > self.possibleBreakCount:
                         # After one year we have 0 problem trackers, and +200k that successfully send data after more than one break
-                        self.error.append( "Data break" )
+                        self.error.append("Data break")
                         self.success = False
                         return
                     else:
@@ -95,10 +97,10 @@ class GPSTerminal:
                 proceed += 1
                 AVLBlockPos = self.AVL
         else:
-            self.error.append( "No data received" )
+            self.error.append("No data received")
             self.success = False
 
-    def readData(self, length = 8192):
+    def readData(self, length=8192):
         data = self.socket.recv(length)
         return data
 
@@ -111,13 +113,13 @@ class GPSTerminal:
         """
         Proceed block data from received data
         """
-        DateV = '0x'+ self.extract(16)
-        DateS = int(round(int( DateV, 16) /1000, 0))
+        DateV = "0x" + self.extract(16)
+        DateS = int(round(int(DateV, 16) / 1000, 0))
         Prio = self.extract_int(2)
         GpsLng = self.extract_int(8)
         GpsLat = self.extract_int(8)
-        Lng = str(float(GpsLng)/10000000)
-        Lat = str(float(GpsLat)/10000000)
+        Lng = str(float(GpsLng) / 10000000)
+        Lat = str(float(GpsLat) / 10000000)
         Alt = self.extract_int(4)
         Course = self.extract_int(4)
         Sats = self.extract_int(2)
@@ -127,14 +129,24 @@ class GPSTerminal:
 
         sensorDataResult = {}
         pais_count = 0
-        for i in [1,2,4,8]:
+        for i in [1, 2, 4, 8]:
             pc = 0
             data = self.readSensorDataBytes(i)
             for iocode in data.keys():
-                pais_count+=1
+                pais_count += 1
                 sensorDataResult[iocode] = data[iocode]
                 pc += 1
-        return {'imei' : self.imei, 'date': DateS, 'lng': Lng, 'lat': Lat, 'alt': Alt, 'course': Course, 'sats': Sats, 'speed': Speed, 'sensorData': sensorDataResult}
+        return {
+            "imei": self.imei,
+            "date": DateS,
+            "lng": Lng,
+            "lat": Lat,
+            "alt": Alt,
+            "course": Course,
+            "sats": Sats,
+            "speed": Speed,
+            "sensorData": sensorDataResult,
+        }
 
     def readSensorDataBytes(self, count):
         result = {}
@@ -142,13 +154,13 @@ class GPSTerminal:
         i = 1
         while i <= pairsCount:
             IOCode = self.extract_int(2)
-            IOVal = self.extract_int( count * 2)
+            IOVal = self.extract_int(count * 2)
             result[IOCode] = IOVal
-            i+=1
+            i += 1
         return result
 
     def extract(self, length):
-        result = self.Hexline[ self.AVL : (self.AVL + length) ]
+        result = self.Hexline[self.AVL : (self.AVL + length)]
         self.AVL += length
         return result
 
@@ -166,9 +178,7 @@ class GPSTerminal:
         Check data from client terminal for correct first bytes
         """
         hello = self.readData(2)
-        return '(15,)' == str(
-            struct.unpack("!H", hello )
-        )
+        return "(15,)" == str(struct.unpack("!H", hello))
 
     def sendOKClient(self):
         """
@@ -182,7 +192,7 @@ class GPSTerminal:
         self.closeConnection()
 
     def closeConnection(self):
-        #self.socket.close()
+        # self.socket.close()
         p = 1
 
     def getSensorData(self):

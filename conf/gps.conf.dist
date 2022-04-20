@@ -1,5 +1,5 @@
 [redis]
-host=localhost
+host=redis
 port=6379
 db=0
 channel=GPSSensorsData
@@ -11,7 +11,7 @@ workers=10
 port=9980
 
 [postgresql_db]
-host=127.0.0.1
+host=postgres
 port=5432
 user=gps_teltonika
 password=gps_teltonika
