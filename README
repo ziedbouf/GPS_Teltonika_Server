@@ -19,6 +19,7 @@ I've choosen to split the project in two different folder because the "data_coll
 You could of course decide to put the "collector" wherever you want, and choose to scale it up as you want (of course you need to point the redis as well)
 The second folder contains the "db_worker", you could configure may workers in order to read from redis and write to PostgreSQL, this could also a cluster.
 
+
 I will strongly suggest you to use a virtual environment; to start the collector, move on the "data_collector" directory and launch
 
     "python3 snifr.py"
@@ -26,3 +27,7 @@ I will strongly suggest you to use a virtual environment; to start the collector
 To launch the db_worker, move into the corresponding directory and start it with
 
     "python3 db_daemon.py".
+
+You can run using docker-compose by proceeding as follow:
+    "docker-compose build"
+    "docker-compose up"

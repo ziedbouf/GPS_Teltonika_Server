@@ -8,7 +8,7 @@ channel=GPSSensorsData
 workers=10
 
 [server]
-port=9980
+port=1030
 
 [postgresql_db]
 host=postgres

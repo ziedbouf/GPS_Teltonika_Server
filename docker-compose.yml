@@ -5,7 +5,7 @@ services:
   snifr:
     build: '.'
     ports:
-      - '9980:9980'
+      - '1030:1030'
     command: 'python collector/snifr.py'
     depends_on:
       - postgres
