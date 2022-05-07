@@ -21,9 +21,13 @@ def unpack(fmt, data):
 
 
 class GPSTerminal:
+    # @TODO: instead of passing socket as tuple
+    # pass connection and address
     def __init__(self, socket):
         self.socket = socket[0]
         self.ip = socket[1][0]
+
+        # @TODO: move this to configuration param
         self.socket.settimeout(15)
         self.initVariables()
 

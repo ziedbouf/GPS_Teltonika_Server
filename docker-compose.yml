@@ -18,8 +18,6 @@ services:
       POSTGRES_DB: gps_teltonika_server
       POSTGRES_USER: gps_teltonika
       POSTGRES_PASSWORD: gps_teltonika
-    ports:
-      - '5432:5432'
     volumes:
       - 'pgdata:/var/lib/postgresql/data/'
       - ./conf/db.sql:/docker-entrypoint-initdb.d/dummy_dump.sql
@@ -27,8 +25,6 @@ services:
   redis:
     container_name: 'redis'
     image: 'redis:latest'
-    ports:
-      - '6379:6379'
     volumes:
       - 'redisdata:/data'
 
